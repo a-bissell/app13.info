@@ -14,21 +14,14 @@ Click any game on the site — if the `.swf` isn't present yet, it will show you
 
 This site is designed for **GitHub Pages**. Push to the `main` branch and enable Pages in your repository settings (Settings > Pages > Source: Deploy from a branch > `main` / `/ (root)`).
 
-Your site will be live at `https://yourusername.github.io/app13.info/` or at your custom domain.
+Your site will be live at `https://a-bissell.github.io/app13.info/` or at your custom domain `https://app13.info`.
 
 ## Custom Domain
 
-To use `app13.info` as a custom domain:
+DNS is configured on Porkbun. To finish setup:
 
 1. In your repo, go to Settings > Pages > Custom domain, enter `app13.info`
-2. Add these DNS records with your domain registrar:
-   - `A` records pointing to GitHub Pages IPs:
-     - `185.199.108.153`
-     - `185.199.109.153`
-     - `185.199.110.153`
-     - `185.199.111.153`
-   - `CNAME` record: `www` -> `yourusername.github.io`
-3. Check "Enforce HTTPS" once DNS propagates
+2. Check "Enforce HTTPS" once DNS propagates
 
 ## Tech
 

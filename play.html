@@ -6,143 +6,61 @@
 <script src="https://unpkg.com/@ruffle-rs/ruffle/ruffle.js"></script>
 <style>
 body {
-    background-color: #1a1a2e;
-    color: #cccccc;
+    background-color: #ffffff;
+    color: #000000;
     font-family: Verdana, Arial, Helvetica, sans-serif;
     font-size: 12px;
     margin: 0;
     padding: 0;
-}
-a { color: #5bc0de; text-decoration: none; }
-a:hover { color: #ffffff; text-decoration: underline; }
-a:visited { color: #8899aa; }
-#wrapper {
-    width: 780px;
-    margin: 0 auto;
-    padding: 10px 20px;
-}
-#header {
     text-align: center;
-    padding: 15px 0;
-    border-bottom: 1px solid #333355;
 }
-#header h1 {
-    font-size: 28px;
-    color: #5bc0de;
-    margin: 0 0 5px 0;
-    font-weight: bold;
-    letter-spacing: 2px;
-}
-#header .tagline {
-    font-size: 11px;
-    color: #777799;
-}
-#nav {
-    text-align: center;
-    padding: 8px 0;
-    border-bottom: 1px solid #333355;
-    font-size: 11px;
-}
-#nav a { margin: 0 8px; }
-#game-area {
-    text-align: center;
-    padding: 20px 0;
-}
-#game-title {
-    font-size: 18px;
-    color: #5bc0de;
-    margin: 0 0 15px 0;
-}
+a { color: #0000ee; }
+a:visited { color: #551a8b; }
+a:hover { color: #ff0000; }
 #game-container {
     display: inline-block;
     background-color: #000000;
-    border: 2px solid #333355;
+    border: 1px solid #000000;
     width: 700px;
     height: 525px;
 }
-#game-container object,
-#game-container ruffle-embed,
 #game-container ruffle-player {
     width: 700px;
     height: 525px;
 }
-#game-controls {
-    margin-top: 10px;
-    font-size: 11px;
-    color: #777799;
-}
 #error-msg {
     display: none;
-    background-color: #16213e;
-    border: 1px solid #333355;
-    padding: 20px;
-    margin: 20px auto;
-    max-width: 500px;
-    text-align: center;
-    color: #aaaacc;
+    border: 1px solid #cccccc;
+    padding: 15px;
+    margin: 15px auto;
+    max-width: 450px;
+    font-size: 11px;
+    color: #555555;
 }
-#error-msg h3 { color: #5bc0de; margin-top: 0; }
-#back-link {
-    margin-top: 20px;
-    text-align: center;
-}
-#footer {
-    text-align: center;
-    padding: 15px 0;
-    border-top: 1px solid #333355;
-    font-size: 10px;
-    color: #555577;
-}
-#footer a { color: #5bc0de; }
 </style>
 </head>
 <body>
 
-<div id="wrapper">
+<br>
 
-<div id="header">
-    <a href="index.html" style="text-decoration:none;">
-        <h1>app13.info</h1>
-    </a>
-    <div class="tagline">Free Online Flash Games</div>
-</div>
+<h2 id="game-title">Loading...</h2>
 
-<div id="nav">
-    <a href="index.html">&laquo; Back to Games</a> |
-    <a href="about.html">About us</a> |
-    <a href="changelog.html">Changelog</a> |
-    <a href="devblog.html">Dev Blog</a> |
-    <a href="request.html">Request</a>
-</div>
+<div id="game-container"></div>
 
-<div id="game-area">
-    <h2 id="game-title">Loading...</h2>
-    <div id="game-container"></div>
-    <div id="game-controls">
-        Click the game to focus. Press F11 for fullscreen.
-    </div>
-</div>
+<p style="font-size:10px;color:#999999;">Click the game to focus.</p>
 
 <div id="error-msg">
-    <h3>Game Not Found</h3>
-    <p>The <code>.swf</code> file for this game hasn't been added yet.</p>
-    <p>To add it, place the file in the <code>games/</code> folder with the filename shown below:</p>
-    <p><code id="expected-file"></code></p>
-    <p style="margin-top:15px;font-size:10px;color:#777799;">
+    <b>Game Not Found</b><br><br>
+    The .swf file for this game hasn't been added yet.<br>
+    To add it, place the file in the <code>games/</code> folder with this filename:<br><br>
+    <code id="expected-file"></code><br><br>
+    <span style="font-size:10px;">
         Tip: Many classic Flash games can be found in
         <a href="https://flashpointarchive.org/" target="_blank">BlueMaxima's Flashpoint</a> archive.
-    </p>
+    </span>
 </div>
 
-<div id="back-link">
-    <a href="index.html">&laquo; Back to all games</a>
-</div>
-
-<div id="footer">
-    &copy; 2010 app13.info | Recreated 2026 | Powered by <a href="https://ruffle.rs" target="_blank">Ruffle</a>
-</div>
-
-</div>
+<p><a href="index.html">&laquo; Back to all games</a></p>
 
 <script>
 window.RufflePlayer = window.RufflePlayer || {};
@@ -173,7 +91,6 @@ window.addEventListener("DOMContentLoaded", function() {
 
     player.ruffle().load(swfPath).catch(function() {
         container.style.display = "none";
-        document.getElementById("game-controls").style.display = "none";
         errorMsg.style.display = "block";
     });
 });
