@@ -24,8 +24,7 @@ a:hover { color: #ff0000; }
     width: 700px;
     height: 525px;
 }
-#game-container ruffle-player,
-#game-container iframe {
+#game-container ruffle-player {
     width: 700px;
     height: 525px;
     border: none;
@@ -46,12 +45,6 @@ a:hover { color: #ff0000; }
     font-size: 11px;
     color: #555555;
 }
-#fp-credit {
-    display: none;
-    font-size: 10px;
-    color: #999999;
-    margin-top: 6px;
-}
 </style>
 </head>
 <body>
@@ -63,7 +56,6 @@ a:hover { color: #ff0000; }
 <div id="game-container"></div>
 
 <p id="controls-hint" style="font-size:10px;color:#999999;">Click the game to focus.</p>
-<p id="fp-credit">Playing via <a href="https://flashpointarchive.org/" target="_blank">Flashpoint Archive</a></p>
 <p id="status-msg">Looking up on Flashpoint...</p>
 
 <div id="error-msg">
@@ -95,26 +87,55 @@ window.addEventListener("DOMContentLoaded", function() {
     document.title = "app13.info - " + gameName;
     document.getElementById("expected-file").textContent = "games/" + game + ".swf";
 
+    var swfPath = "games/" + game + ".swf";
     var container = document.getElementById("game-container");
 
-    // Step 1: Try local .swf via Ruffle
+    // Step 1: HEAD request to check if the .swf actually exists before
+    // handing it to Ruffle — Ruffle silently swallows 404s and never
+    // rejects its load() promise, so we can't rely on .catch() for that.
+    fetch(swfPath, { method: "HEAD" })
+        .then(function(resp) {
+            if (resp.ok) {
+                loadWithRuffle(swfPath, container);
+            } else {
+                goToFlashpoint(gameName, container);
+            }
+        })
+        .catch(function() {
+            goToFlashpoint(gameName, container);
+        });
+});
+
+function loadWithRuffle(swfPath, container) {
     var ruffle = window.RufflePlayer.newest();
+    if (!ruffle) {
+        // Ruffle CDN not yet ready — retry once after a short delay
+        setTimeout(function() {
+            var r = window.RufflePlayer.newest();
+            if (r) {
+                var p = r.createPlayer();
+                p.style.width = "700px";
+                p.style.height = "525px";
+                container.appendChild(p);
+                p.load(swfPath);
+            }
+        }, 500);
+        return;
+    }
     var player = ruffle.createPlayer();
     player.style.width = "700px";
     player.style.height = "525px";
     container.appendChild(player);
+    player.load(swfPath);
+}
 
-    player.ruffle().load("games/" + game + ".swf").then(function() {
-        // Local .swf loaded successfully, nothing more to do
-    }).catch(function() {
-        // Step 2: Local file not found — try Flashpoint
-        container.innerHTML = "";
-        container.style.backgroundColor = "#ffffff";
-        container.style.border = "none";
-        document.getElementById("controls-hint").style.display = "none";
-        lookupFlashpoint(gameName, container);
-    });
-});
+function goToFlashpoint(gameName, container) {
+    container.innerHTML = "";
+    container.style.backgroundColor = "#ffffff";
+    container.style.border = "none";
+    document.getElementById("controls-hint").style.display = "none";
+    lookupFlashpoint(gameName, container);
+}
 
 function lookupFlashpoint(gameName, container) {
     var statusMsg = document.getElementById("status-msg");
@@ -148,16 +169,38 @@ function lookupFlashpoint(gameName, container) {
 }
 
 function showFlashpointPlayer(id, container) {
-    var iframe = document.createElement("iframe");
-    iframe.src = FLASHPOINT_PLAYER + "?id=" + id;
-    iframe.allowFullscreen = true;
-    iframe.setAttribute("allow", "autoplay; fullscreen");
+    var playUrl = FLASHPOINT_PLAYER + "?id=" + id;
 
-    container.style.backgroundColor = "#000000";
-    container.style.border = "1px solid #000000";
-    container.appendChild(iframe);
+    container.style.backgroundColor = "#ffffff";
+    container.style.border = "1px solid #cccccc";
+    container.style.display = "flex";
+    container.style.flexDirection = "column";
+    container.style.alignItems = "center";
+    container.style.justifyContent = "center";
+    container.style.gap = "12px";
 
-    document.getElementById("fp-credit").style.display = "block";
+    var msg = document.createElement("p");
+    msg.style.margin = "0";
+    msg.style.fontSize = "12px";
+    msg.style.color = "#555555";
+    msg.textContent = "This game is available via Flashpoint Archive.";
+
+    var btn = document.createElement("a");
+    btn.href = playUrl;
+    btn.target = "_blank";
+    btn.textContent = "Play on Flashpoint Archive";
+    btn.style.fontSize = "13px";
+    btn.style.fontWeight = "bold";
+
+    var note = document.createElement("p");
+    note.style.margin = "0";
+    note.style.fontSize = "10px";
+    note.style.color = "#999999";
+    note.textContent = "(opens in a new tab)";
+
+    container.appendChild(msg);
+    container.appendChild(btn);
+    container.appendChild(note);
 }
 
 function showError() {
