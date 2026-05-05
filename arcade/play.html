@@ -85,7 +85,7 @@ window.addEventListener("DOMContentLoaded", function() {
     var gameName = game.replace(/[-_]/g, " ").replace(/\b\w/g, function(c) { return c.toUpperCase(); });
     document.getElementById("game-title").textContent = gameName;
     document.title = "app13.info - " + gameName;
-    document.getElementById("expected-file").textContent = "games/" + game + ".swf";
+    document.getElementById("expected-file").textContent = "arcade/games/" + game + ".swf";
 
     var swfPath = "games/" + game + ".swf";
     var container = document.getElementById("game-container");

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% if page.title %}{{ page.title }} — {% endif %}app13.info</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      background: #fff;
+      color: #1a1a1a;
+      font-family: Georgia, 'Times New Roman', serif;
+      font-size: 17px;
+      line-height: 1.7;
+      margin: 0;
+      padding: 0;
+    }
+
+    a { color: #0066cc; text-decoration: none; }
+    a:visited { color: #0066cc; }
+    a:hover { text-decoration: underline; }
+
+    #site-header {
+      border-bottom: 1px solid #e0e0e0;
+      padding: 20px 0;
+      margin-bottom: 48px;
+    }
+
+    #site-header .inner {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 0 24px;
+      display: flex;
+      align-items: baseline;
+      gap: 24px;
+    }
+
+    #site-name {
+      font-family: 'Courier New', monospace;
+      font-size: 20px;
+      font-weight: bold;
+      letter-spacing: -0.5px;
+      color: #1a1a1a;
+    }
+
+    #site-name a { color: inherit; }
+    #site-name a:hover { text-decoration: none; opacity: 0.7; }
+
+    #site-nav {
+      font-family: Verdana, Arial, sans-serif;
+      font-size: 13px;
+      color: #555;
+    }
+
+    #site-nav a { color: #555; margin-right: 16px; }
+    #site-nav a:hover { color: #1a1a1a; text-decoration: none; }
+
+    main {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 0 24px 80px;
+    }
+
+    #site-footer {
+      border-top: 1px solid #e0e0e0;
+      padding: 24px 0;
+      margin-top: 80px;
+      font-family: Verdana, Arial, sans-serif;
+      font-size: 11px;
+      color: #999;
+      text-align: center;
+    }
+
+    #site-footer a { color: #bbb; }
+    #site-footer a:hover { color: #777; text-decoration: none; }
+
+    pre, code {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 14px;
+    }
+
+    pre {
+      background: #f5f5f5;
+      border-left: 3px solid #ccc;
+      padding: 16px 20px;
+      overflow-x: auto;
+      line-height: 1.5;
+    }
+
+    code {
+      background: #f0f0f0;
+      padding: 1px 5px;
+      border-radius: 2px;
+    }
+
+    pre code {
+      background: none;
+      padding: 0;
+    }
+
+    blockquote {
+      border-left: 3px solid #ccc;
+      margin: 0;
+      padding-left: 20px;
+      color: #555;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+
+<header id="site-header">
+  <div class="inner">
+    <div id="site-name"><a href="/">app13.info</a></div>
+    <nav id="site-nav">
+      <a href="/">posts</a>
+      <a href="/about/">about</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  {{ content }}
+</main>
+
+<footer id="site-footer">
+  &copy; {{ 'now' | date: "%Y" }} Alexander Bissell &nbsp;&middot;&nbsp;
+  <a href="/arcade/">[archive]</a>
+</footer>
+
+</body>
+</html>

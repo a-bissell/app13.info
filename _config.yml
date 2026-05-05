@@ -1,0 +1,14 @@
+title: app13.info
+description: Security research by Alexander Bissell
+url: "https://app13.info"
+baseurl: ""
+
+permalink: /posts/:title/
+
+markdown: kramdown
+highlighter: rouge
+
+exclude:
+  - arcade/
+  - scripts/
+  - README.md
