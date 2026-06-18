@@ -5,11 +5,11 @@ date: 2026-06-12
 tags: [security, robotics, unitree]
 ---
 
-In September 2025, three researchers, Andreas Makris (Bin4ry), Kevin Finisterre (h0stile), and Konstantin Severov (legion1581) published a critical vulnerability in Unitree's entire robot product line. CVE-2025-35027: a command injection in the BLE WiFi configuration service, exploitable from 30 feet away, running as root. Every Go2, G1, H1, B2, and X1 ever shipped was vulnerable. Notable there was a hardcoded AES key, a trivial handshake, and unsanitized input straight into `wpa_supplicant`.
+In September 2025, three researchers, (Bin4ry, h0stile, legion1581) published a critical vulnerability in Unitree's entire robot product line. CVE-2025-35027: a command injection in the BLE WiFi configuration service, exploitable from 30 feet away, running as root. Every Go2, G1, H1, B2, and X1 ever shipped was vulnerable. 
 
 A few months later, Olivier Laflamme (Boshcko) and Ruikai Peng independently found CVE-2026-27509: the `programming_actuator` service accepts Python uploads over the local network and executes them as root.
 
-Both findings were single-target, operator-at-keyboard exploits. One robot at a time with a manual trigger. After the initial drop of Unipwn I was obsessed with a question I kept thinking about: **can these be chained into a self-propagating, robot-to-robot worm?** Like actually built, actually tested, actually spreading autonomously across real hardware. Robots moving around and hacking other robots. 
+Both findings were single-target, operator-at-keyboard exploits. One robot at a time with a manual trigger. After the initial drop of Unipwn I was obsessed with a question: **can these be chained into a self-propagating, robot-to-robot worm?** Like actually built, actually tested, actually spreading autonomously across real hardware. Robots moving around and hacking other robots. 
 
 The answer, it turns out, is yes! This is how it works.
 
